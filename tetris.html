@@ -22,21 +22,41 @@
             width: 30px;
             height: 30px;
         }
+        #info {
+            margin-top: 10px;
+        }
+        #previousScores {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
 
 <div id="game"></div>
+<div id="info">
+    <p id="playerInfo"></p>
+    <p id="scoreInfo">Score: 0</p>
+    <p id="recordInfo">Record: 0 by <span id="recordHolder">Nobody</span></p>
+</div>
+<div id="previousScores">
+    <h3>Previous Scores:</h3>
+    <ul id="scoreList"></ul>
+</div>
 <button id="start">Start Game</button>
 <audio id="gameMusic" src="inspectionProfiles/8%20bit%20-%20Музыка%20из%20тетриса.mp3" preload="auto" loop></audio>
 <audio id="gameOver" src="inspectionProfiles/Tetris%20&%20Dr.%20Mario%20-%20Tetris%20Game%20Over.mp3" preload="auto"></audio>
-
 
 <script>
     const gameContainer = document.getElementById('game');
     const startButton = document.getElementById('start');
     const gameMusic = document.getElementById('gameMusic');
     const gameOver = document.getElementById('gameOver');
+    const playerInfo = document.getElementById('playerInfo');
+    const scoreInfo = document.getElementById('scoreInfo');
+    const recordInfo = document.getElementById('recordInfo');
+    const recordHolder = document.getElementById('recordHolder');
+    const scoreList = document.getElementById('scoreList');
+
     const rows = 20;
     const cols = 10;
     const colors = ['red'];
@@ -45,6 +65,61 @@
     let timer;
     let currentRow;
     let dropSpeed = 1000;
+    let score = 0;
+    let playerName;
+
+    let record = 0;
+    let recordName = "Nobody";
+
+    let previousScores = JSON.parse(localStorage.getItem('previousScores')) || [];
+
+    function renderPreviousScores() {
+        scoreList.innerHTML = '';
+        previousScores.forEach(({ name, score }) => {
+            const listItem = document.createElement('li');
+            listItem.textContent = `${name}: ${score}`;
+            scoreList.appendChild(listItem);
+        });
+    }
+
+    function saveCurrentPlayerScore() {
+        if (playerName && score > 0) {
+            previousScores.push({ name: playerName, score });
+            localStorage.setItem('previousScores', JSON.stringify(previousScores));
+            renderPreviousScores();
+        }
+    }
+
+    function initializePlayer() {
+        if (playerName) saveCurrentPlayerScore();
+
+        playerName = prompt('Enter your name:', 'Player');
+        if (!playerName) playerName = 'Player';
+        localStorage.setItem('playerName', playerName);
+        playerInfo.textContent = `Player: ${playerName}`;
+
+        score = 0;
+        scoreInfo.textContent = `Score: ${score}`;
+
+        const savedRecord = localStorage.getItem('record');
+        const savedRecordName = localStorage.getItem('recordName');
+        if (savedRecord) {
+            record = parseInt(savedRecord, 10);
+            recordName = savedRecordName || "Nobody";
+        }
+        recordInfo.textContent = `Record: ${record} by ${recordName}`;
+    }
+
+    // Сохранение рекорда
+    function updateRecord() {
+        if (score > record) {
+            record = score;
+            recordName = playerName;
+            localStorage.setItem('record', record);
+            localStorage.setItem('recordName', recordName);
+            recordInfo.textContent = `Record: ${record} by ${recordName}`;
+        }
+    }
 
     function createGrid() {
         gameContainer.innerHTML = '';
@@ -71,6 +146,8 @@
             gameMusic.pause();
             alert("Game Over!");
             gameOver.play();
+            saveCurrentPlayerScore();
+            updateRecord();
         }
     }
 
@@ -79,6 +156,9 @@
             if (grid[row].every(cell => cell === 1)) {
                 grid.splice(row, 1);
                 grid.unshift(Array(cols).fill(0));
+                score += 10;
+                scoreInfo.textContent = `Score: ${score}`;
+                updateRecord();
             }
         }
     }
@@ -125,6 +205,12 @@
     }
 
     document.addEventListener('keydown', (event) => {
+        if (event.code === 'KeyR') {
+            initializePlayer();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
         if (event.code === 'Space') {
             addBlock();
             createGrid();
@@ -144,6 +230,8 @@
         grid = Array.from({ length: rows }, () => Array(cols).fill(0));
         clearInterval(timer);
         dropSpeed = 1000;
+        score = 0;
+        scoreInfo.textContent = `Score: ${score}`;
         createGrid();
         addBlock();
         timer = setInterval(moveDown, dropSpeed);
@@ -151,6 +239,8 @@
         gameMusic.play();
     });
 
+    renderPreviousScores();
+    initializePlayer();
     createGrid();
 </script>
 
